@@ -2,6 +2,7 @@
 Group B: Paracancer vs. Cancer DeSeq
 
 get-data bioinf-m2_group-project
+
 ln -s /data/bioinf-m2_group-project/CancerAndParacancer.RData
 
 You are given an RData file containing:
