@@ -19,4 +19,5 @@ cancer vs paracancer samples (Group B)
 
 
 
-https://vlab.oc1.aws.cs.bham.ac.uk/proxy/3f9757e7-d740-4fef-9e0b-d88c609db040/files/bro/part1.html
+[
+(https://vlab.oc1.aws.cs.bham.ac.uk/proxy/fffe67c1-14d2-4258-9d94-8f777b603df7/files/NGSlegit1.html)
