@@ -16,3 +16,7 @@ cancer vs paracancer samples (Group B)
 2. Show the top 15 genes in a table, and your DEG analysis using appropriate figures
 3. Identify which KEGG and REACTOME pathways are up- or down-regulated in the groups being compared. Do this via a pathway enrichment analysis
 4. Show us your results from 1 and 2! What genes are important? What pathways could you identify? 
+
+
+
+https://vlab.oc1.aws.cs.bham.ac.uk/proxy/3f9757e7-d740-4fef-9e0b-d88c609db040/files/bro/part1.html
