@@ -1,0 +1,159 @@
+## STEP 4- showing the top 15 genes
+
+```{r}
+# find significant DEGs
+sum( res$padj < 0.1, na.rm=TRUE )
+
+# clean and delete na
+res_df <- as.data.frame(res)
+res_df <- res_df[!is.na(res_df$padj), ]
+
+#order by significance
+res_ordered <- res_df[order(res_df$padj), ]
+
+# extract top15
+top15 <- head(res_ordered, 15)
+top15
+top15_table <- top15[, c("log2FoldChange", "pvalue", "padj")]
+top15_table
+
+
+```
+
+## STEP 5- plotting for visualization
+
+```{r}
+library(pheatmap)
+library(ggplot2)
+
+# 1-Data quality control plots
+# PCA plot
+
+vsd <- vst(dds, blind=FALSE)
+plotPCA(vsd, intgroup = "condition", ntop = 500)
+
+# simple distance heatmap- overall gene-expression profiles.
+# compute sample-to-sample distances
+dists <- dist(t(assay(vsd)))
+
+# convert to matrix
+mat <- as.matrix(dists)
+
+pheatmap(mat,
+         clustering_distance_rows = dists,
+         clustering_distance_cols = dists,
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         fontsize_row = 4,
+         fontsize_col = 4,
+         angle_col = 45,
+         main = "Sample-to-sample Distance Heatmap")
+
+
+```
+
+```{r}
+## 2 – Differential expression plots
+
+# MA plot: log2 fold change versus mean expression
+# shows the pattern of genes that are up- or down-regulated
+plotMA(
+  res,
+  main = "MA plot: Cancer vs Paracancerous"
+)
+
+# Volcano plot
+BiocManager::install("EnhancedVolcano")
+library(EnhancedVolcano)
+# get the row names of the top 15 genes.
+# these row names correspond to the gene IDs in the DESeq2 result object.
+top15_genes <- rownames(top15_table)
+
+# making a volcano plot, highlighting only the top 15 most significant genes
+EnhancedVolcano(
+  res,
+  lab       = rownames(res),      # labels for all genes (by row name)
+  x         = "log2FoldChange",   # x-axis: effect size (Cancer / Paracancerous)
+  y         = "padj",             # y-axis: adjusted p-value
+  pCutoff   = 0.05,               # significance threshold for padj
+  FCcutoff  = 0.5,                # threshold for |log2 fold change|
+  selectLab = top15_genes,        # only these genes are labelled on the plot
+  pointSize = 1.5,
+  labSize   = 4,
+  col       = c("grey30", "forestgreen", "royalblue", "red2"),
+  title     = "Volcano Plot (Top 15 Most Significant Genes)",
+  subtitle  = "Top genes labelled based on lowest adjusted p-values"
+)
+
+
+```
+
+
+```{r}
+# 3- Biological interpretation plots
+
+library(RColorBrewer)
+
+# Heatmap for Top 15 DEGs
+
+# Extract expression matrix from VST
+vsd_mat <- assay(vsd)
+
+# Get the rownames of top15 genes
+top15_genes <- rownames(top15_table)
+
+# Intersect to avoid missing genes (just in case)
+top15_genes <- intersect(top15_genes, rownames(vsd_mat))
+
+# Subset the VST matrix
+heatmap_top15 <- vsd_mat[top15_genes, ]
+
+# Plot heatmap
+pheatmap(
+  heatmap_top15,
+  scale = "row",
+  clustering_distance_rows = "euclidean",
+  clustering_distance_cols = "euclidean",
+  clustering_method = "complete",
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  fontsize_row = 6,
+  fontsize_col = 6,
+  angle_col = 45,
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(100),
+  main = "Top 15 Differentially Expressed Genes"
+)
+```
+
+```{r}
+library(reshape2)
+library(ggplot2)
+
+# Choose how many genes you want to show in the boxplots (here: top 6)
+top_genes <- rownames(top15_table)[1:6]
+
+# Subset the VST expression matrix to only these genes
+expr_top <- vsd_mat[top_genes, ]
+
+# Convert the matrix to long format for ggplot2
+df <- melt(expr_top)
+colnames(df) <- c("Gene", "Sample", "Expression")
+
+# Add group (condition) information for each sample
+# 'condition' is the column we created earlier in pdat / colData(dds)
+df$condition <- colData(vsd)$condition[match(df$Sample, rownames(colData(vsd)))]
+
+# Draw boxplots of expression per condition for each gene
+ggplot(df, aes(x = condition, y = Expression, fill = condition)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(width = 0.2, size = 1.3, alpha = 0.7) +
+  facet_wrap(~ Gene, scales = "free_y", ncol = 3) +
+  theme_bw(base_size = 12) +
+  theme(
+    strip.text       = element_text(size = 12, face = "bold"),
+    legend.position  = "none"
+  ) +
+  ylab("VST normalized expression") +
+  ggtitle("Expression Boxplots of Top Differentially Expressed Genes")
+
+```
