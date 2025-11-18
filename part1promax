@@ -62,36 +62,27 @@ normal_des <- as.data.frame(counts(dds, normalized = T))
 # adding gene names into one field
 des_order$gene <- rownames(des_order)
 
-# display first rows of both tables
+# show first rows of both tables
 head(des_order);head(normal_des)
 ```
 
 ```{r}
-# make a simple table from results
-top_res<- as.data.frame(res)
 
-# remove lines with missing adjusted values
-top_res <- subset(top_res, !is.na(padj))
-
-# find fifteen smallest adjusted values
-top_id <- head(order(top_res$padj), 15)
-
-# pick gene names for these lines
-top_genes<- rownames(top_res)[top_id]
+# pick gene names for fifteen best padj
+top_genes <- rownames(des_order)[1:15]
 
 # keep genes that also have feature rows
-top_genes <- top_genes[top_genes %in% rownames(feat)]
+top_genes <- top_genes[top_genes %in% rownames(FeatureMat)]
 
-# join gene names, features and test scores using cbind
+# joining gene names, features and test scores using cbind
 top15 <- cbind(
   # write gene name into first field
   GeneID = top_genes,
   # adding extra information about each gene
-  feat[top_genes, , drop = F],
-  # adding log2FoldChange, pvalue, padj values for these genes
-  top_res[top_genes, c("log2FoldChange", "pvalue", "padj"), drop = F]
+  FeatureMat[top_genes, , drop = F],
+  # adding log2FoldChange, pvalue, padj for these genes
+  des_order[top_genes, c("log2FoldChange", "pvalue", "padj"), drop = F]
 )
-
 # show short summary and full result table
 summary(top15);print(top15)
 
