@@ -5,7 +5,7 @@ expr <- ExprMat;pdat <- pDataMat;feat <- FeatureMat
 same_samples <- intersect(colnames(expr), rownames(pdat))
 expr <- expr[, same_samples, drop = F]
 pdat <- pdat[same_samples, , drop = F]
-expr <- expr[rowSums(expr) >= 8375, , drop = F]
+expr <- expr[rowSums(expr) >= 100, , drop = F]
 expr <- expr[!duplicated(rownames(expr)), , drop = F]
 feat <- feat[!duplicated(rownames(feat)), , drop = F]
 new_col <- intersect(c("gene_symbol", "symbol", "chromosome", "description", "gene_biotype"), colnames(feat))
