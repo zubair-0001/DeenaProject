@@ -1,5 +1,4 @@
 ```{r}
-
 # use DESeq2 and load study tables
 library(DESeq2);load("CancerAndParacancer.RData")
 
@@ -16,21 +15,21 @@ expr <- expr[, same_samples, drop = F]
 pdat <- pdat[same_samples, , drop = F]
 
 # remove genes with very low reads
-expr <- expr[rowSums(expr) >= 100, , drop = F]
+expr <- expr[rowSums(expr) >= 954, , drop = F]
 
-# remove repeated gene names in expr 
+# remove repeated gene names in expr
 expr <- expr[!duplicated(rownames(expr)), , drop = F]
 
 # remove repeated gene names in feat
 feat <- feat[!duplicated(rownames(feat)), , drop = F]
 
-# choose useful fields with gene info
+# choose useful feilds with gene info
 new_col <- intersect(c("gene_symbol", "symbol", "chromosome", "description", "gene_biotype"), colnames(feat))
 
-# keep only these info feilds
+# keep only these chosen info fields
 feat <- feat[, new_col, drop = F]
 
-# match feat rows to gene list
+# match feat rows to current gene list
 feat <- feat[rownames(expr), , drop = F]
 
 # call first patient column condition
@@ -45,7 +44,7 @@ pdat$condition <- relevel(pdat$condition, ref = "paracancerous")
 # prepare input for DESeq2 group comparison
 dds <- DESeqDataSetFromMatrix(countData = expr, colData = pdat, design = ~ condition)
 
-# run DESeq2 and colect result table
+# run DESeq2 and collect result table
 dds <- DESeq(dds);res <- results(dds)
 
 # order genes by smallest adjusted p values
@@ -57,18 +56,61 @@ des_order <- as.data.frame(res_ordered)
 # get read counts adjusted for library size
 normal_des <- as.data.frame(counts(dds, normalized = T))
 
-# adding gene names into one field
+# add gene names into one field
 des_order$gene <- rownames(des_order)
 
-# pick gene names for 15 best padj
+# pick gene names for best padj
 top_genes <- rownames(des_order)[1:15]
 
 # keep genes that also have feature rows
 top_genes <- top_genes[top_genes %in% rownames(FeatureMat)]
 
-# join gene names, features and test scores
-top15 <- cbind(GeneID = top_genes,FeatureMat[top_genes, , drop = F],
+# find smallest total reads for these genes
+cutoff <- min(rowSums(expr)[top_genes]);cat("cutoff is:", cutoff, "\n")
+
+# join gene names, features and test values
+top <- cbind(GeneID = top_genes,FeatureMat[top_genes, , drop = F],
   des_order[top_genes, c("log2FoldChange","pvalue", "padj","stat","lfcSE","baseMean"), drop = F])
 
-# show short summary and full result table
-summary(top15);print(top15)
+# order genes by size of positive change
+up_order <- order(des_order$log2FoldChange, decreasing = T)
+
+# pick genes with largest positive change
+up_genes <- rownames(des_order)[up_order][1:10]
+
+# keep up genes that have feature rows
+up_genes <- up_genes[up_genes %in% rownames(FeatureMat)]
+
+# find smallest total reads for up genes
+cutoff <- min(rowSums(expr)[up_genes]);cat("cutoff is:", cutoff, "\n")
+
+# join names, features and values for up genes
+top_up <- cbind(GeneID = up_genes,FeatureMat[up_genes, , drop = F],
+  des_order[up_genes, c("log2FoldChange","pvalue", "padj","stat","lfcSE","baseMean"), drop = F])
+
+# order genes by size of negative change
+down_order <- order(des_order$log2FoldChange, decreasing = F)
+
+# pick genes with largest negative change
+down_genes <- rownames(des_order)[down_order][1:10]
+
+# keep down genes that have feature rows
+down_genes <- down_genes[down_genes %in% rownames(FeatureMat)]
+
+# find smallest total reads for down genes
+cutoff <- min(rowSums(expr)[down_genes]);cat("cutoff is:", cutoff, "\n")
+
+# join names, features and values for down genes
+top_down <- cbind(GeneID = down_genes,FeatureMat[down_genes, , drop = F],
+  des_order[down_genes, c("log2FoldChange","pvalue", "padj","stat","lfcSE","baseMean"), drop = F])
+
+# show summary and table for top genes
+summary(top);knitr::kable(top)
+
+# show summary and table for top up genes
+summary(top_up);knitr::kable(top_up)
+
+# show summary and table for top down genes
+summary(top_down);knitr::kable(top_down)
+
+```
