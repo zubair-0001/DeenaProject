@@ -1,6 +1,6 @@
 # DESeq PART 1 by Abhijith
 
-#### 1.Loading the the libraries and Data
+#### 1.Loading the libraries and Data
 
 ```{r}
 library(DESeq2)
@@ -10,18 +10,18 @@ load("CancerAndParacancer.RData")
 2.Storing sample data for easier access
 
 ```{r}
-expr <-ExprMat#gene expression in samples
-pdat <-pDataMat#patient data sample
-feat <-FeatureMat#Features of genes
+expr <-ExprMat #gene expression in samples
+pdat <-pDataMat #patient data sample
+feat <-FeatureMat #Features of genes
 ```
 
 3.Aligning sample data for ease of DEseq
 
 ```{r}
-same_samples <-intersect(colnames(expr), rownames(pdat))#find common samples
-expr <- expr[ ,same_samples,drop= F]#filter expressed genes
-pdat <- pdat[same_samples, ,drop= F]#filter patient data sample
-#print(all(colnames(expr) == rownames(pdat))) #Debugging
+same_samples <-intersect(colnames(expr), rownames(pdat)) #find common samples
+expr <- expr[ ,same_samples,drop= F] #filter expressed genes
+pdat <- pdat[same_samples, ,drop= F] #filter patient data sample
+#print(all(colnames(expr) == rownames(pdat))) #Debugging #used earlier not ATM
 ```
 
 4.Filtering noise or unnecessary info
@@ -35,26 +35,26 @@ feat <-feat[!duplicated(rownames(feat)), , drop=F] #checks for duplicated gene f
 5.prepare grouping for DEseq2 and using paracancerous as reference instead of cancer
 
 ```{r}
-pdat$Group <- factor(pdat$Group)#convert to factor
-#table(pdat)#for debugging
-pdat$Group <-relevel(pdat$Group ,ref= "paracancerous")#setting the reference level
+pdat$Group <- factor(pdat$Group) #convert to factor
+#table(pdat) #for debugging
+pdat$Group <-relevel(pdat$Group ,ref= "paracancerous") #setting the reference level
 #table(pdat)#for debugging
 ```
 
 6.DeSeq2 analysis part;used head for Debugging ;used # as it is not necessary ATM
 
 ```{r}
-dds <- DESeqDataSetFromMatrix(countData =expr,colData = pdat, design =~ Group)#;head(dds)
-dds <- DESeq(dds)#;head(dds)
-res <- results(dds)#;head(res)
+dds <- DESeqDataSetFromMatrix(countData =expr,colData = pdat, design =~ Group) #;head(dds)
+dds <- DESeq(dds) #;head(dds)
+res <- results(dds) #;head(res)
 ```
 
 7.shows results of top 15 genes
 
 ```{r}
-res_ordered <-res[order(res$padj, na.last=NA),]#sort by padj and skips if NA
-des_order <-as.data.frame(res_ordered)#data repurposing by converting to data frame
-head(des_order,15)
+res_ordered <-res[order(res$padj, na.last=NA),] #sort by padj and skips if NA
+des_order <-as.data.frame(res_ordered) #data repurposing by converting to data frame
+head(des_order,15) #shows top 15 genes
 ```
 
 # DEseq part 4 by Abhijith
@@ -62,34 +62,33 @@ head(des_order,15)
 8.Converting results of top 15 to corresponding to their features through the GeneID.Helps to identify and understand these genes better
 
 ```{r}
-top_g <- rownames(des_order)[1:15]#selects top 15
-top <-cbind(GeneID =top_g, feat[top_g, ,drop= F])#finds corresponding geneid and gives me their genetic features
-knitr::kable(top)#;head(top) #knit table for html
+top_g <- rownames(des_order)[1:15] #selects top 15
+top <-cbind(GeneID =top_g, feat[top_g, ,drop= F]) #finds corresponding geneid and gives me their genetic features
+knitr::kable(top) #;head(top) #knit table for html
 ```
 
 9.Finding the top 5 upregulated genes
 
 ```{r}
 sig <- des_order[des_order$padj < 0.1,] #filtering p value to only < 0.1
-sig_up <-sig[sig$log2FoldChange >1,]#filtering doubled value which is positive
-sig_up <- sig_up[order(sig_up$log2FoldChange,decreasing = T),]#arranging the order
-up_id <- head(rownames(sig_up),5)#selects only top 5
-up_num <-cbind(GeneID=up_id, des_order[up_id, ,drop=F])#upregulated table creation
-top_up <-cbind(GeneID=up_id, feat[up_id, ,drop=F])#corresponding value of features
-knitr::kable(up_num)#;head(up_num) #knit table for html
-knitr::kable(top_up)#;head(top_up) #knit table for html
+sig_up <-sig[sig$log2FoldChange >1,] #filtering doubled value which is positive
+sig_up <- sig_up[order(sig_up$log2FoldChange,decreasing = T),] #arranging the order
+up_id <- head(rownames(sig_up),5) #selects only top 5
+up_num <-cbind(GeneID=up_id, des_order[up_id, ,drop=F]) #upregulated table creation
+top_up <-cbind(GeneID=up_id, feat[up_id, ,drop=F]) #corresponding value of features
+knitr::kable(up_num) #;head(up_num) #knit table for html
+knitr::kable(top_up) #;head(top_up) #knit table for html
 ```
 
 10.Finding the top 5 down regulated genes
 
 ```{r}
-sig_down <-sig[sig$log2FoldChange < -1,]#filtering doubled value which is negative
-sig_down <- sig_down[order(sig_down$log2FoldChange,decreasing = F),]#arranging the order
-down_id <- head(rownames(sig_down),5)#selects only top 5
+sig_down <-sig[sig$log2FoldChange < -1,] #filtering doubled value which is negative
+sig_down <- sig_down[order(sig_down$log2FoldChange,decreasing = F),] #arranging the order
+down_id <- head(rownames(sig_down),5) #selects only top 5
 down_num <-cbind(GeneID=down_id, des_order[down_id, ,drop=F])#down regulated table creation
 top_d <-cbind(GeneID=down_id, feat[down_id, ,drop=F]) #corresponding value of features                
-knitr::kable(down_num)#;head(down_num) #knit table for html
-knitr::kable(top_d)#;head(top_d) #knit table for html
+knitr::kable(down_num) #;head(down_num) #knit table for html
+knitr::kable(top_d) #;head(top_d) #knit table for html
 ```
-
 
