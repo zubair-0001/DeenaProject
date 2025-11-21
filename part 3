@@ -1,1 +1,49 @@
+```{r}
+library(fgsea)
+library(data.table)
+library(ggplot2)
 
+```
+
+```{r}
+### loads in the DESOrder file and gives appropriate column name for the geneIDs
+DESOrder = read.csv(file = "DESOrder.csv")
+colnames(DESOrder)[1] = "geneIDs"
+
+### creates a table with the 2 columns, ranked genes and stat values 
+rankTable = DESOrder[, c("geneIDs", "stat")]
+
+### orders the table by stat descending 
+rankTableOrdered = rankTable[order(rankTable$stat, decreasing = T), ]
+
+### creates a .txt file from previous table for GSEA for future reference 
+write.table(rankTableOrdered, file = "cancerVsParacancer.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+## converts the table into numeric vector with geneIDs as names for each stat
+rankVec = rankTableOrdered$stat
+names(rankVec) = rankTableOrdered$geneIDs
+
+## creates variable for GSEA downloaded from KEGG .gmt file from MSigDB
+keggPathways = gmtPathways("c2.cp.kegg_medicus.v2025.1.Hs.entrez.gmt")
+
+reactPathways = gmtPathways("c2.cp.reactome.v2025.1.Hs.entrez.gmt")
+
+## run GSEA with KEGG pathways
+GSEA_KEGG = fgseaMultilevel(pathways = keggPathways, stats = rankVec, minSize = 15, maxSize = 500)
+
+GSEA_REACT = fgseaMultilevel(pathways = reactPathways, stats = rankVec, minSize = 15, maxSize = 500)
+
+## pathway results only with padj < 0.05 for significance
+GSEA_KEGG_PADJ = GSEA_KEGG[GSEA_KEGG$padj < 0.05, ]
+
+## now ordering table by NES for most unregulated pathways
+GSEA_KEGG_NES = GSEA_KEGG_PADJ[order(-GSEA_KEGG_PADJ$NES), ]
+topPathway = GSEA_KEGG_PADJ[order(-GSEA_KEGG_PADJ$NES), ][1, ]
+bottomPathway = GSEA_KEGG_PADJ[order(GSEA_KEGG_PADJ$NES), ][1, ]
+
+plotEnrichment(keggPathways[["KEGG_MEDICUS_REFERENCE_PRE_IC_FORMATION"]], rankVec) + labs(title = "Top Pathway")
+plotEnrichment(keggPathways[["KEGG_MEDICUS_REFERENCE_GPCR_PLCB_ITPR_SIGNALING_PATHWAY"]], rankVec) + labs(title = "Bottom Pathway")
+
+
+
+```
