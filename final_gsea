@@ -1,0 +1,146 @@
+```{r}
+library(fgsea)
+library(data.table)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+```
+
+```{r}
+### loads in the DESOrder file and gives appropriate column name for the geneIDs, using NCBI entrez IDs
+
+DESOrder = read.csv(file = "DESOrder.csv")
+colnames(DESOrder)[1] = "geneIDs"
+
+
+### creates a table with the 2 columns, those are the ranked genes and stat values 
+
+rankTable = DESOrder[, c("geneIDs", "stat")]
+
+
+### orders the table by stat descending, however this step may not be necessary for GSEA
+
+rankTableOrdered = rankTable[order(rankTable$stat, decreasing = T), ]
+
+
+### creates a .txt file from previous table for GSEA, just for future reference 
+
+write.table(rankTableOrdered, file = "cancerVsParacancer.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+
+
+### converts the table into numeric vector with geneIDs as names for each stat, which is the format GSEA requires
+
+rankVec = rankTableOrdered$stat
+names(rankVec) = rankTableOrdered$geneIDs
+
+
+### creates variable for GSEA downloaded from KEGG .gmt file from MSigDB, also REACTOME pathways
+
+keggPathways = gmtPathways("c2.cp.kegg_medicus.v2025.1.Hs.entrez.gmt")
+
+reactPathways = gmtPathways("c2.cp.reactome.v2025.1.Hs.entrez.gmt")
+
+
+### run GSEA function with KEGG and REACTOME pathways
+
+GSEA_KEGG = fgseaMultilevel(pathways = keggPathways, stats = rankVec, minSize = 15, maxSize = 500)
+
+GSEA_REACT = fgseaMultilevel(pathways = reactPathways, stats = rankVec, minSize = 15, maxSize = 500)
+
+
+### filters the pathway results with padj < 0.05 for significance
+
+GSEA_KEGG_PADJ = GSEA_KEGG[GSEA_KEGG$padj < 0.05, ]
+
+GSEA_REACT_PADJ = GSEA_REACT[GSEA_REACT$padj < 0.05, ]
+
+
+### now ordering table by NES for most upregulated pathways to most downregulated
+
+GSEA_KEGG_NES = GSEA_KEGG_PADJ[order(-GSEA_KEGG_PADJ$NES), ]
+
+GSEA_REACT_NES = GSEA_REACT_PADJ[order(-GSEA_REACT_PADJ$NES), ]
+
+
+### another NES table, this time in reverse order showing the most downregulated first, ie -NES
+
+GSEA_KEGG_NES_REVERSE = GSEA_KEGG_PADJ[order(GSEA_KEGG_PADJ$NES), ]
+
+```
+
+
+```{r}
+### KEGG results, top one most up-regulated and bottom one most down-regulated pathway and their enrichment plots
+
+topPathway = GSEA_KEGG_PADJ[order(-GSEA_KEGG_PADJ$NES), ][1, ]
+bottomPathway = GSEA_KEGG_PADJ[order(GSEA_KEGG_PADJ$NES), ][1, ]
+
+plotEnrichment(keggPathways[["KEGG_MEDICUS_REFERENCE_PRE_IC_FORMATION"]], rankVec) + labs(title = "Most Upregulated Pathway")
+plotEnrichment(keggPathways[["KEGG_MEDICUS_REFERENCE_GPCR_PLCB_ITPR_SIGNALING_PATHWAY"]], rankVec) + labs(title = "Most Downregulated Pathway")
+
+
+### small tables showing just top and bottom 5, could be used for other visualization
+
+topFive = GSEA_KEGG_NES[1:5]
+bottomFive = GSEA_KEGG_NES_REVERSE[1:5]
+
+
+```
+
+
+```{r}
+
+### created new column from pathway names to shorten the names as they are very long, difficult to read on a plot
+
+GSEA_KEGG_NES$pathway_short = GSEA_KEGG_NES$pathway |> str_replace("KEGG_", "") |> str_replace("MEDICUS_", "") |> str_replace_all("_", " ") |> str_replace("REFERENCE", "") |> str_to_title() 
+
+GSEA_KEGG_NES_REVERSE$pathway_short = GSEA_KEGG_NES_REVERSE$pathway |> str_replace("KEGG_", "") |> str_replace("MEDICUS_", "") |> str_replace_all("_", " ") |> str_replace("REFERENCE", "") |> str_to_title() 
+
+
+### created 2 new tables specifically filtered for NES scores above 2 and below -2, these pathways have most enrichment
+
+### also piped into mutate() and factor() functions which essentially forces the plot to be ordered by the pathway_short column, and not alphabetically 
+
+GSEA_KEGG_NES_HIGH = GSEA_KEGG_NES[GSEA_KEGG_NES$NES >= 2.0] %>% mutate(pathway_short = factor(pathway_short, levels = pathway_short))
+
+GSEA_KEGG_NES_LOW = GSEA_KEGG_NES_REVERSE[GSEA_KEGG_NES_REVERSE$NES <= -2.0] %>% mutate(pathway_short = factor(pathway_short, levels = pathway_short))
+
+
+### now created 2 dot plots, comparing pathway NES scores, also showing padj and set size
+
+### as you can see, the previous code forces the pathways to appear ordered by NES
+
+ggplot(GSEA_KEGG_NES_HIGH, aes(x = NES, y = pathway_short)) + geom_point(aes(size = size, colour = padj)) + scale_size(range = c(3, 8)) + labs(x = "NES", y = "Pathways", size = "Gene Set Size") + theme_bw() + scale_color_gradient(low = "darkred", high = "lightgrey") + theme(aspect.ratio = 2)
+
+ggplot(GSEA_KEGG_NES_LOW, aes(x = NES, y = pathway_short)) + geom_point(aes(size = size, colour = padj)) + scale_size(range = c(2, 5)) + labs(x = "NES", y = "Pathways", size = "Gene Set Size") + theme_bw() + scale_color_gradient(low = "darkblue", high = "lightgrey") + theme(aspect.ratio = 2)
+
+
+###
+topFiveReact = GSEA_REACT_NES[1:5]
+bottomFiveReact = tail(GSEA_REACT_NES, 5)
+reactPlot = bind_rows(topFiveReact, bottomFiveReact)
+reactPlot$pathway = factor(reactPlot$pathway, levels = reactPlot$pathway)
+
+ggplot(reactPlot, aes(x = NES, y = pathway)) + geom_point(aes(size = size, colour = NES)) + scale_size(range = c(3, 8)) + labs(x = "NES", y = "Pathways", size = "Gene Set Size") + theme_bw() + scale_colour_gradient(low = "darkblue", high = "darkred")
+
+
+
+```
+
+
+```{r}
+
+### performed a sanity check with using un-ordered rank vector, GSEA produced same results
+
+### fgsea github mentioned that GSEA internally ranks, but there was conflicting information so I ran the GSEA with ranked, but it is not necessary, as shown below
+
+rankTableNoOrder = rankTable[order(rankTable$stat, decreasing = F), ]
+
+rankVecNoOrder = rankTableNoOrder$stat
+names(rankVecNoOrder) = rankTableNoOrder$geneIDs
+
+GSEA_KEGG_UN = fgseaMultilevel(pathways = keggPathways, stats = rankVecNoOrder, minSize = 15, maxSize = 500)
+
+rm(rankTableNoOrder, rankVecNoOrder, GSEA_KEGG_UN)
+
+```
